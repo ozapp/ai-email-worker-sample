@@ -1,5 +1,22 @@
 import { EmailMessage } from "cloudflare:email";
 import { createMimeMessage } from "mimetext";
+import PostalMime from 'postal-mime';
+
+async function streamToArrayBuffer(stream, streamSize) {
+  let result = new Uint8Array(streamSize);
+  let bytesRead = 0;
+  const reader = stream.getReader();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    result.set(value, bytesRead);
+    bytesRead += value.length;
+  }
+  return result;
+}
+
 
 export default {
   async email(message, env, ctx) {
@@ -9,8 +26,14 @@ export default {
       message.setReject("Address not allowed");
       return;
     }
-    // await message.forward("ipfs@ozapp.mobi");
 
+    const rawEmail = await streamToArrayBuffer(message.raw, message.rawSize);
+    const parser = new PostalMime();
+    const parsedEmail = await parser.parse(rawEmail);
+    console.log("Mail subject: ", parsedEmail.subject);
+    console.log("Mail message ID", parsedEmail.messageId);
+    console.log("HTML version of Email: ", parsedEmail.html);
+    console.log("Text version of Email: ", parsedEmail.text);
     const msg = createMimeMessage();
     msg.setHeader("In-Reply-To", message.headers.get("Message-ID"));
     msg.setSender({ name: "Thank you for you contact", addr: to });
@@ -18,7 +41,7 @@ export default {
     msg.setSubject("Email Routing Auto-reply");
     msg.addMessage({
       contentType: 'text/plain',
-      data: `We got your message, your ticket number is ${'2342343'}`
+      data: `We got your message, your ticket number is ${parsedEmail.html}`
     });
 
     const replyMessage = new EmailMessage(

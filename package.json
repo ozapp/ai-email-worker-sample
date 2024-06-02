@@ -8,6 +8,7 @@
     "start": "wrangler dev"
   },
   "devDependencies": {
+    "postal-mime": "^2.2.5",
     "wrangler": "^3.0.0"
   },
   "dependencies": {
