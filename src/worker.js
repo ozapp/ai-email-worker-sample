@@ -1,6 +1,7 @@
 import { EmailMessage } from "cloudflare:email";
 import { createMimeMessage } from "mimetext";
 import PostalMime from 'postal-mime';
+import { parse } from 'node-html-parser'
 
 async function streamToArrayBuffer(stream, streamSize) {
   let result = new Uint8Array(streamSize);
@@ -34,6 +35,8 @@ export default {
     console.log("Mail message ID", parsedEmail.messageId);
     console.log("HTML version of Email: ", parsedEmail.html);
     console.log("Text version of Email: ", parsedEmail.text);
+    const html = parse(parsedEmail.html)
+    const body = html.querySelector('body').text
     const msg = createMimeMessage();
     msg.setHeader("In-Reply-To", message.headers.get("Message-ID"));
     msg.setSender({ name: "Thank you for you contact", addr: to });
@@ -41,7 +44,7 @@ export default {
     msg.setSubject("Email Routing Auto-reply");
     msg.addMessage({
       contentType: 'text/plain',
-      data: `We got your message, your ticket number is ${parsedEmail.html}`
+      data: `We got your message, your ticket number is ${body}`
     });
 
     const replyMessage = new EmailMessage(
