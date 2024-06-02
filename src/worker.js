@@ -39,20 +39,34 @@ export default {
     const body = html.querySelector('body').text
     const msg = createMimeMessage();
     msg.setHeader("In-Reply-To", message.headers.get("Message-ID"));
-    msg.setSender({ name: "Thank you for you contact", addr: to });
+    msg.setSender({ name: "AI Summuary", addr: to });
     msg.setRecipient(message.from);
-    msg.setSubject("Email Routing Auto-reply");
-    msg.addMessage({
-      contentType: 'text/plain',
-      data: `We got your message, your ticket number is ${body}`
-    });
-
-    const replyMessage = new EmailMessage(
-      to,
-      from,
-      msg.asRaw()
+    msg.setSubject(`AI Summuary: ${parsedEmail.subject}`);
+    const respSummary = await env.AI.run('@cf/facebook/bart-large-cnn', {
+      input_text: `${body}`,
+      max_length: 10240
+    }
     );
+    if (respSummary && respSummary.summary) {
+      const respTranslate = await env.AI.run('@cf/qwen/qwen1.5-14b-chat-awq',
+        {
 
-    await message.reply(replyMessage);
+          "max_tokens": 40960,
+          prompt: `Translate to Chinese: ${respSummary.summary}`
+        })
+
+      msg.addMessage({
+        contentType: 'text/plain',
+        data: `${respTranslate.response}`
+      });
+
+      const replyMessage = new EmailMessage(
+        to,
+        from,
+        msg.asRaw()
+      );
+
+      await message.reply(replyMessage);
+    }
   }
 }
